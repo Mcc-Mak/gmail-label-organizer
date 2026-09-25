@@ -1,0 +1,6 @@
+services:
+  organizer:
+    build: .
+    container_name: mail-organizer
+    env_file: [.env]
+    restart: "no"

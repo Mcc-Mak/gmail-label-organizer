@@ -3,6 +3,36 @@
 All notable changes to this project are documented in this file.
 Versions follow [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
+## [0.3.0] - 2026-09-25
+### Added
+- **Initial implementation** of the IMAP email organizer (all SPEC deliverables):
+  `organizer.py`, `Dockerfile`, `docker-compose.yml`, `requirements.txt`,
+  `.env.example`, `.gitignore`.
+- **Recursive sender-domain grouping** (user's primary feature intent): a
+  message from `ccmak@hko.gov.hk` is filed into `Auto/hk/gov/hko` (TLD-first
+  nested tree, PSL-free — full domain reversed, no registered-domain
+  heuristic). Controlled by new `DOMAIN_GROUPING` env var:
+  `all` (default, file every message by domain + rules), `fallback`
+  (domain only when no rule matches), `off` (rules-only flat folders).
+- `LABEL_RULES` classification: `field:pattern` / `field:pattern:i`
+  (case-insensitive). Fields: `from`, `to`, `subject`, `body`, `list-id`.
+- CLI flags: `--dry-run`, `--list-folders`, `--test-connection`, `--rule`.
+- Idempotency: skips messages already in the target folder (by `Message-ID`);
+  messages without `Message-ID` are skipped to avoid duplicates.
+- Non-destructive: `COPY`, or `STORE \Deleted` after confirmed copy when
+  `ACTION=move`; never `EXPUNGE`, never mark-as-read.
+- Expanded `README.md` with all SPEC-required sections (What it does, Infra,
+  Quick start, Config reference, Rule syntax, Recursive domain grouping,
+  Cron, Safety, Troubleshooting).
+
+### Fixed (during verification)
+- `--dry-run` no longer touches the server: previously it still issued
+  `CREATE` (folder creation) and read-only `SELECT`/`SEARCH` for idempotency
+  checks; now a dry run only logs `WOULD COPY` and issues no `CREATE`,
+  `COPY`, or `STORE`. Caught by independent verification (segregation of
+  duties) against the SPEC intent ("Print what would happen without touching
+  the server").
+
 ## [0.2.0] - 2026-09-25
 ### Changed
 - **Segregation of duties in the per-change workflow**: "verify" is now a
