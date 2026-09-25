@@ -1,4 +1,5 @@
 # Gmail Label Organizer
+---
 ## Prompt: to build a self-contained Python application that connects to an email account over **IMAP**, scans the inbox, and organizes messages into folders (IMAP folders serve as "labels")
 ````
 # OpenCode Instruction: Gmail Label Organizer (Python + Docker, IMAP-based)
