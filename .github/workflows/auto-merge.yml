@@ -1,0 +1,119 @@
+name: Auto merge branches
+
+on:
+  push:
+    branches:
+      - dev-001
+      - dev
+
+permissions:
+  contents: write
+
+# 相当于 GitLab 的 resource_group，串行化合并操作
+concurrency:
+  group: auto-merge
+  cancel-in-progress: false
+
+jobs:
+  auto_merge_dev_001_to_dev:
+    if: github.ref == 'refs/heads/dev-001'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout dev
+        uses: actions/checkout@v5
+        with:
+          ref: dev
+          fetch-depth: 0
+          # 如果要自动串联 dev-001 -> dev -> main，必须用 PAT / GitHub App Token。
+          # GITHUB_TOKEN 推送 dev 后不会触发新的 workflow。
+          token: ${{ secrets.GIT_PUSH_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+      - name: Auto-merge dev-001 into dev
+        run: |
+          git fetch origin dev dev-001
+          git checkout dev
+          git reset --hard origin/dev
+          git merge origin/dev-001 --no-ff -m "Auto-merge dev-001 into dev"
+          git push origin dev
+
+  auto_merge_dev_to_main:
+    if: github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.GIT_PUSH_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+      - name: Auto-merge dev into main
+        run: |
+          git fetch origin main dev
+          git checkout main
+          git reset --hard origin/main
+          git merge origin/dev --no-ff -m "Auto-merge dev into main"
+          git push origin main
+#
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+#
+# 🔐 生成可用的 GIT_PUSH_TOKEN
+#
+# 推荐使用 Fine-grained Personal Access Token (PAT)，它相比 Classic Token 提供了更精细的权限控制，是最小权限原则的最佳实践。
+# 
+# 创建步骤：
+# 
+# 1. 访问 Token 设置页面：登录 GitHub，点击右上角头像 → Settings → Developer settings → Personal access tokens → Fine-grained tokens。
+# 2. 生成新 Token：点击 Generate new token。
+# 3. 配置 Token 基本信息：
+#   - Token name：填写一个描述性名称，例如 auto-merge-token。
+#   - Expiration：设置过期时间，建议不超过一年。
+#   - Resource owner：选择你的个人账户或组织。
+# 4. 配置仓库访问权限：
+#   - 在 Repository access 下，选择 Only select repositories，然后选中需要执行自动合并的目标仓库。
+# 5. 配置权限：
+#   - 在 Permissions → Repository permissions 中，找到 Contents，将其设置为 Read and write。这是执行 git push 操作所需的最低权限。
+#   - 同时确保 Metadata 为 Read-only（这是默认必需的）。
+# 6. 生成并保存：点击 Generate token，立即复制生成的 Token 值，因为它只会显示一次。
+#
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+#
+# 🔓 处理 main 分支保护
+#
+# 仅创建 PAT 是不够的，因为 GitHub 的分支保护规则默认会阻止直接推送，即使使用了 PAT。你还需要在仓库设置中明确允许该 PAT 对应的用户或应用绕过保护规则。
+#
+# 操作步骤：
+# 1. 进入仓库的 Settings → Branches。
+# 2. 找到针对 main 分支的保护规则，点击 Edit。
+# 3. 在 "Allow specified actors to bypass required pull requests"（允许特定参与者绕过必需的拉取请求）部分，勾选 "Restrict who can dismiss pull request reviews" 或类似的绕过选项。
+# 4. 将你的 GitHub 用户名（或你所属的团队/应用）添加到绕过列表中。
+# 5. 确保 "Do not allow bypassing the above settings"（不允许绕过上述设置）选项处于 未勾选 状态。这是使绕过列表生效的关键。
+#
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+#
+# Repository Secret: `GIT_PUSH_TOKEN`
+# 
+# 适用于单个仓库：
+# 1. 打开目标仓库页面
+# 2. 进入 Settings
+# 3. 左侧选择 Secrets and variables → Actions
+# 4. 点击 New repository secret
+# 5. 填写：
+#   - Name: GIT_PUSH_TOKEN
+#   - Secret: 粘贴你刚才生成的 PAT 值，例如 github_pat_xxxxxxxxx
+# 6. 点击 Add secret
+#
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+#
